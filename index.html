@@ -1,0 +1,446 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Shot Hot - Simulador</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/animate.css/4.1.1/animate.min.css" rel="stylesheet">
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Bangers&family=Poppins:wght@400;600;800&display=swap');
+
+        :root {
+            --neon-pink: #ff007f;
+            --neon-blue: #00f3ff;
+            --neon-purple: #bc13fe;
+            --neon-red: #ff3131;
+        }
+
+        body {
+            font-family: 'Poppins', sans-serif;
+            background-color: #080c14;
+            color: #f8fafc;
+            overflow-x: hidden;
+            user-select: none;
+        }
+
+        .title-font {
+            font-family: 'Bangers', cursive;
+            letter-spacing: 3px;
+        }
+
+        .glass {
+            background: rgba(21, 27, 43, 0.9);
+            border: 1px solid rgba(30, 41, 59, 1);
+        }
+
+        .neon-border-pink { border: 2px solid var(--neon-pink); box-shadow: 0 0 20px rgba(255,0,127,0.4); }
+        .neon-border-blue { border: 2px solid var(--neon-blue); box-shadow: 0 0 20px rgba(0,243,255,0.4); }
+        .neon-border-red { border: 2px solid var(--neon-red); box-shadow: 0 0 20px rgba(255,49,49,0.4); }
+        
+        .card-gradient {
+            background: linear-gradient(135deg, #0f172a 0%, #020617 100%);
+        }
+
+        .btn-primary {
+            background: linear-gradient(45deg, var(--neon-pink), var(--neon-purple));
+            transition: all 0.2s ease;
+        }
+
+        .btn-primary:active:not(:disabled) { transform: scale(0.95); }
+
+        .shot-icon {
+            filter: drop-shadow(0 0 8px var(--neon-blue));
+        }
+
+        .rule-badge {
+            background: rgba(255, 49, 49, 0.1);
+            border: 1px solid var(--neon-red);
+        }
+
+        ::-webkit-scrollbar { width: 4px; }
+        ::-webkit-scrollbar-thumb { background: var(--neon-pink); border-radius: 10px; }
+
+        .modal-overlay {
+            background: rgba(0, 0, 0, 0.9);
+            backdrop-filter: blur(10px);
+        }
+    </style>
+</head>
+<body class="min-h-screen flex flex-col items-center justify-center p-4">
+
+    <!-- PANTALLA DE INICIO -->
+    <div id="setup-screen" class="w-full max-w-md animate__animated animate__fadeIn">
+        <div class="text-center mb-8">
+            <h1 class="text-7xl title-font text-transparent bg-clip-text bg-gradient-to-r from-pink-500 via-purple-500 to-cyan-400 mb-2 drop-shadow-lg" style="filter: drop-shadow(0 0 10px rgba(255,0,127,0.5));">SHOT HOT</h1>
+            <p class="text-slate-400 font-bold text-xs tracking-widest uppercase">Reglas Intocables · Máximo Caos</p>
+        </div>
+
+        <div class="glass rounded-[30px] p-6 mb-6 shadow-2xl">
+            <h2 class="text-lg font-bold mb-4 flex items-center text-pink-400 uppercase tracking-tight">
+                <span class="mr-2 text-2xl">👥</span> JUGADORES <span id="player-count" class="ml-2 text-white/50 text-base font-black">(0)</span>
+            </h2>
+            <div id="player-list" class="space-y-2 mb-4 max-h-48 overflow-y-auto pr-2 min-h-[60px] flex flex-col justify-center">
+                <p id="empty-players" class="text-slate-500 text-center text-sm">Añade amigos para empezar...</p>
+            </div>
+            <div class="flex gap-2">
+                <input id="player-input" type="text" placeholder="Nombre..." 
+                    class="flex-1 bg-[#080c14] border border-slate-700 rounded-xl px-4 py-3 focus:outline-none focus:border-pink-500 text-white transition-colors">
+                <button onclick="addPlayer()" class="bg-pink-600 hover:bg-pink-500 w-14 rounded-xl transition-all shadow-lg font-bold text-2xl pb-1 flex items-center justify-center">
+                    +
+                </button>
+            </div>
+        </div>
+
+        <div class="glass rounded-[30px] p-6 mb-8 shadow-2xl">
+            <h2 class="text-lg font-bold mb-4 text-cyan-400 flex items-center justify-center tracking-widest">
+                🔥 DIFICULTAD 🔥
+            </h2>
+            <div class="grid grid-cols-3 gap-2">
+                <button onclick="setDifficulty('chill')" class="diff-btn p-3 rounded-xl bg-slate-800 text-slate-400 text-xs font-bold uppercase transition-all">Social</button>
+                <button onclick="setDifficulty('party')" class="diff-btn p-3 rounded-xl border-2 border-pink-500 bg-slate-800 text-white text-xs font-bold uppercase transition-all">Fiesta</button>
+                <button onclick="setDifficulty('extreme')" class="diff-btn p-3 rounded-xl bg-slate-800 text-slate-400 text-xs font-bold uppercase transition-all">Caos</button>
+            </div>
+        </div>
+
+        <button onclick="startGame()" id="start-btn" class="w-full btn-primary py-5 rounded-[20px] font-black text-xl shadow-[0_10px_25px_rgba(255,0,127,0.3)] opacity-50 cursor-not-allowed uppercase tracking-wider" disabled>
+            CARGANDO...
+        </button>
+    </div>
+
+    <!-- PANTALLA DE JUEGO -->
+    <div id="game-screen" class="hidden w-full max-w-md animate__animated animate__fadeIn">
+        <div class="flex justify-between items-center mb-6">
+            <button onclick="requestExit()" class="text-slate-500 hover:text-white transition-colors font-bold text-xs tracking-widest">✕ SALIR</button>
+            <div class="bg-pink-500/10 px-4 py-2 rounded-full border border-pink-500/50 text-pink-400 text-xs font-black uppercase tracking-widest">
+                TURNO: <span id="current-player-name" class="text-white ml-1">---</span>
+            </div>
+        </div>
+
+        <!-- Tarjeta Principal -->
+        <div id="game-card" class="card-gradient min-h-[440px] rounded-[45px] p-8 flex flex-col items-center justify-center text-center shadow-2xl relative overflow-hidden transition-all duration-300 border border-white/5">
+            <div class="absolute top-8 left-0 right-0 text-[10px] font-black uppercase tracking-[0.4em] text-cyan-400 opacity-70">DINÁMICA ACTIVA</div>
+            
+            <div id="card-icon" class="text-7xl mb-6 animate__animated">🥃</div>
+            
+            <h3 id="card-title" class="text-4xl font-black mb-4 leading-tight uppercase title-font tracking-wide">...</h3>
+            <p id="card-description" class="text-slate-300 text-lg mb-8 leading-relaxed">...</p>
+            
+            <div id="shot-count" class="flex gap-3"></div>
+        </div>
+
+        <!-- Reglas Activas -->
+        <div id="active-rules-container" class="mt-8 hidden">
+            <div class="flex justify-between items-center mb-3">
+                <p class="text-[10px] font-black text-slate-400 uppercase tracking-widest flex items-center">
+                    <span class="w-2 h-2 bg-red-500 rounded-full mr-2 animate-pulse"></span> 
+                    REGLAS ACTIVAS
+                </p>
+                <span id="rules-counter" class="text-red-400 text-[10px] font-black">0/3</span>
+            </div>
+            <div id="active-rules" class="space-y-2">
+                <!-- Reglas fijas aquí -->
+            </div>
+        </div>
+
+        <div class="mt-8">
+            <button onclick="nextTurn()" class="w-full bg-white text-black py-6 rounded-[25px] font-black text-2xl shadow-[0_0_20px_rgba(255,255,255,0.2)] hover:bg-slate-200 transition-all active:scale-95 uppercase tracking-tighter">
+                Siguiente Carta ⚡
+            </button>
+        </div>
+    </div>
+
+    <!-- MODAL DE SALIDA -->
+    <div id="exit-modal" class="fixed inset-0 modal-overlay z-50 hidden flex items-center justify-center p-6">
+        <div class="glass p-8 rounded-[35px] max-w-sm w-full text-center border-t-8 border-pink-500 animate__animated animate__bounceIn">
+            <div class="text-6xl mb-4">⚠️</div>
+            <h2 class="text-2xl font-black mb-4 text-white uppercase tracking-tight">¿TERMINAR FIESTA?</h2>
+            <p class="text-slate-400 mb-8 font-medium text-sm">Si sales ahora, las reglas actuales se perderán y volverás al inicio.</p>
+            <div class="flex flex-col gap-3">
+                <button onclick="confirmExit()" class="w-full bg-pink-600 hover:bg-pink-500 py-4 rounded-xl font-black text-white transition-all uppercase text-sm">SÍ, VOLVER AL MENÚ</button>
+                <button onclick="closeExitModal()" class="w-full bg-slate-800 hover:bg-slate-700 py-4 rounded-xl font-black text-slate-300 transition-all uppercase text-sm">CANCELAR</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // --- SÍNTESIS DE AUDIO WEB (Equivalente al AudioManager de MAUI) ---
+        const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+
+        function playSound(type) {
+            if (audioCtx.state === 'suspended') audioCtx.resume();
+            const oscillator = audioCtx.createOscillator();
+            const gainNode = audioCtx.createGain();
+            
+            oscillator.connect(gainNode);
+            gainNode.connect(audioCtx.destination);
+            const now = audioCtx.currentTime;
+
+            if (type === 'card') {
+                oscillator.type = 'sine';
+                oscillator.frequency.setValueAtTime(400, now);
+                oscillator.frequency.exponentialRampToValueAtTime(100, now + 0.25);
+                gainNode.gain.setValueAtTime(0.2, now);
+                gainNode.gain.exponentialRampToValueAtTime(0.01, now + 0.25);
+                oscillator.start(now);
+                oscillator.stop(now + 0.25);
+            } else if (type === 'error') {
+                oscillator.type = 'sawtooth';
+                oscillator.frequency.setValueAtTime(180, now);
+                oscillator.frequency.linearRampToValueAtTime(120, now + 0.35);
+                gainNode.gain.setValueAtTime(0.3, now);
+                gainNode.gain.exponentialRampToValueAtTime(0.01, now + 0.35);
+                oscillator.start(now);
+                oscillator.stop(now + 0.35);
+            } else if (type === 'click') {
+                oscillator.type = 'sine';
+                oscillator.frequency.setValueAtTime(1200, now);
+                gainNode.gain.setValueAtTime(0.1, now);
+                gainNode.gain.exponentialRampToValueAtTime(0.01, now + 0.08);
+                oscillator.start(now);
+                oscillator.stop(now + 0.08);
+            }
+        }
+
+        // --- BASE DE DATOS EXACTA A TU C# MAUI ---
+        const chillCards = [
+            { title: "Yo Nunca", desc: "Bebe 1 si alguna vez has mentido para salir de una cita.", shots: 1, isRule: false },
+            { title: "El Maestro", desc: "Cuando pongas el pulgar en la mesa, el último que lo haga bebe 1.", isRule: true },
+            { title: "Talla Pro", desc: "El que tenga el calzado más pequeño bebe 1.", shots: 1, isRule: false },
+            { title: "Cero Nombres", desc: "No se pueden decir nombres de nadie. El que falle, bebe 1.", isRule: true },
+            { title: "Batería", desc: "El que tenga menos porcentaje de batería bebe 1.", shots: 1, isRule: false },
+            { title: "Zodiaco", desc: "Los signos de agua (Cáncer, Escorpio, Piscis) beben 1.", shots: 1, isRule: false },
+            { title: "Instagram", desc: "El que tenga la última foto subida en su feed reparte 1 shot.", shots: 0, isRule: false }
+        ];
+
+        const partyCards = [
+            { title: "Votación Letal", desc: "A la de 3, señalen al que más probable sea arrestado. El elegido bebe 1.", shots: 1, isRule: false },
+            { title: "El Rimas", desc: "Empieza con una palabra, los demás riman. El que falle bebe 1.", shots: 1, isRule: false },
+            { title: "Duelo Visual", desc: "Elige a alguien. El primero en parpadear toma 1 shot.", shots: 1, isRule: false },
+            { title: "Traductor", desc: "Debes hablar con acento extranjero.", isRule: true },
+            { title: "Sin Manos", desc: "Debes beber tu próximo trago sin usar las manos.", shots: 1, isRule: false },
+            { title: "Medusa", desc: "Todos agachan la cabeza. A la de 3 miren a alguien. Si hay contacto visual, ambos beben 1.", shots: 1, isRule: false },
+            { title: "T-Rex", desc: "Debes mantener tus codos pegados a las costillas.", isRule: true }
+        ];
+
+        const extremeCards = [
+            { title: "Fondo Total", desc: "¡El jugador actual se toma 1 shot entero!", shots: 1, isRule: false },
+            { title: "El Esclavo", desc: "Elige a alguien. Beberá cada vez que tú bebas 1.", isRule: true },
+            { title: "Duelo de Titanes", desc: "Elige a un oponente. Ambos se toman 2 shots por valientes.", shots: 2, isRule: false },
+            { title: "Inquisición", desc: "Te harán una pregunta muy personal. Si no respondes, 1 shot.", shots: 1, isRule: false },
+            { title: "Ruleta", desc: "Tira una moneda. Cruz: Tú bebes 1. Cara: Todos menos tú beben 1.", shots: 1, isRule: false },
+            { title: "Castigo Divino", desc: "La mala suerte te persigue. Bebes 2 shots ahora mismo.", shots: 2, isRule: false },
+            { title: "Doblaje", desc: "Si alguien te habla, otra persona debe responder por ti. Si hablas tú, bebes 1.", isRule: true },
+            { title: "Doble o Nada", desc: "Moneda al aire: Cara te salvas, Cruz bebes 2 shots.", shots: 2, isRule: false }
+        ];
+
+        // --- ESTADO DEL JUEGO ---
+        let players = [];
+        let ruleCooldowns = {};
+        let activeRules = [];
+        let currentDifficulty = 'party';
+        let currentPlayerIndex = 0;
+
+        // Texto del botón de inicio dinámico
+        function updateStartButtonText() {
+            const hour = new Date().getHours();
+            const btn = document.getElementById('start-btn');
+            if (hour >= 6 && hour < 12) btn.innerText = "ENCENDER LA MAÑANA";
+            else if (hour >= 12 && hour < 18) btn.innerText = "ENCENDER LA TARDE";
+            else if (hour >= 18 && hour <= 23) btn.innerText = "ENCENDER LA NOCHE";
+            else btn.innerText = "ENCENDER LA MADRUGADA";
+        }
+
+        // --- GESTIÓN DE JUGADORES ---
+        function addPlayer() {
+            const input = document.getElementById('player-input');
+            const name = input.value.trim();
+            if (name && !players.includes(name)) {
+                players.push(name);
+                ruleCooldowns[name] = 0;
+                input.value = '';
+                playSound('click');
+                updateUI();
+            }
+        }
+
+        function removePlayer(name) {
+            players = players.filter(p => p !== name);
+            delete ruleCooldowns[name];
+            playSound('click');
+            updateUI();
+        }
+
+        function updateUI() {
+            document.getElementById('player-count').innerText = `(${players.length})`;
+            
+            const list = document.getElementById('player-list');
+            if (players.length === 0) {
+                list.innerHTML = `<p id="empty-players" class="text-slate-500 text-center text-sm">Añade amigos para empezar...</p>`;
+            } else {
+                list.innerHTML = players.map(p => `
+                    <div class="flex justify-between items-center bg-white/5 px-4 py-2 rounded-xl border border-white/5 animate__animated animate__fadeInLeft animate__faster">
+                        <span class="font-bold text-white tracking-wide">${p}</span>
+                        <button onclick="removePlayer('${p}')" class="text-pink-500 hover:text-white text-xl">✕</button>
+                    </div>
+                `).join('');
+            }
+
+            const btn = document.getElementById('start-btn');
+            if (players.length >= 2) {
+                btn.disabled = false;
+                btn.classList.remove('opacity-50', 'cursor-not-allowed');
+            } else {
+                btn.disabled = true;
+                btn.classList.add('opacity-50', 'cursor-not-allowed');
+            }
+        }
+
+        // --- CONFIGURACIÓN ---
+        function setDifficulty(diff) {
+            currentDifficulty = diff;
+            playSound('click');
+            
+            document.querySelectorAll('.diff-btn').forEach(btn => {
+                btn.classList.remove('border-2', 'border-pink-500', 'text-white');
+                btn.classList.add('text-slate-400');
+            });
+            
+            event.currentTarget.classList.remove('text-slate-400');
+            event.currentTarget.classList.add('border-2', 'border-pink-500', 'text-white');
+        }
+
+        function startGame() {
+            if (audioCtx.state === 'suspended') audioCtx.resume();
+            playSound('click');
+            activeRules = [];
+            currentPlayerIndex = 0;
+            players.forEach(p => ruleCooldowns[p] = 0);
+            
+            document.getElementById('setup-screen').classList.add('hidden');
+            document.getElementById('game-screen').classList.remove('hidden');
+            renderRules();
+            nextTurn();
+        }
+
+        // --- LÓGICA DE TURNOS ---
+        function nextTurn() {
+            if (players.length === 0) return;
+
+            const playerName = players[currentPlayerIndex];
+            document.getElementById('current-player-name').innerText = playerName.toUpperCase();
+            
+            // Construir pool de cartas
+            let pool = [...chillCards];
+            if (currentDifficulty === 'party') pool = pool.concat(partyCards);
+            if (currentDifficulty === 'extreme') pool = pool.concat(partyCards, extremeCards);
+
+            let card = pool[Math.floor(Math.random() * pool.length)];
+            
+            // Evitar reglas si está en cooldown (5 turnos)
+            if (card.isRule && ruleCooldowns[playerName] > 0) {
+                const noRules = pool.filter(c => !c.isRule);
+                if (noRules.length > 0) {
+                    card = noRules[Math.floor(Math.random() * noRules.length)];
+                }
+            }
+
+            // Decrementar enfriamientos
+            players.forEach(p => {
+                if (ruleCooldowns[p] > 0) ruleCooldowns[p]--;
+            });
+
+            displayCard(card, playerName);
+            currentPlayerIndex = (currentPlayerIndex + 1) % players.length;
+        }
+
+        function displayCard(card, player) {
+            const cardEl = document.getElementById('game-card');
+            const iconEl = document.getElementById('card-icon');
+            const titleEl = document.getElementById('card-title');
+            const descEl = document.getElementById('card-description');
+            const shotEl = document.getElementById('shot-count');
+
+            iconEl.classList.remove('animate__bounceIn', 'animate__tada', 'animate__shakeX');
+            void iconEl.offsetWidth; 
+            
+            titleEl.innerText = card.title.toUpperCase();
+            descEl.innerText = card.desc.replace("El jugador actual", player);
+            shotEl.innerHTML = "";
+            
+            if (card.isRule) {
+                playSound('error');
+                iconEl.innerText = "🚨";
+                iconEl.classList.add('animate__shakeX');
+                cardEl.classList.add('neon-border-red');
+                cardEl.classList.remove('neon-border-pink', 'neon-border-blue');
+                
+                ruleCooldowns[player] = 5;
+                const ruleText = `${card.title} (${player})`;
+                
+                if (activeRules.length >= 3) activeRules.shift();
+                activeRules.push({ fullText: ruleText });
+                
+                renderRules();
+            } else {
+                playSound('card');
+                iconEl.innerText = card.shots > 1 ? "🍻" : "🥃";
+                iconEl.classList.add('animate__bounceIn');
+                cardEl.classList.add('neon-border-pink');
+                cardEl.classList.remove('neon-border-red', 'neon-border-blue');
+
+                for(let i=0; i<card.shots; i++) {
+                    shotEl.innerHTML += `<span class="text-4xl shot-icon drop-shadow-[0_0_10px_rgba(0,243,255,0.8)]">🥃</span>`;
+                }
+            }
+        }
+
+        function renderRules() {
+            const container = document.getElementById('active-rules');
+            const parent = document.getElementById('active-rules-container');
+            const counter = document.getElementById('rules-counter');
+            
+            if (activeRules.length > 0) {
+                parent.classList.remove('hidden');
+            } else {
+                parent.classList.add('hidden');
+            }
+            
+            counter.innerText = `${activeRules.length}/3`;
+            
+            container.innerHTML = activeRules.map((r, i) => `
+                <div class="rule-badge px-4 py-3 rounded-xl animate__animated ${i === activeRules.length - 1 ? 'animate__flash' : 'animate__fadeIn'}">
+                    <p class="text-xs font-bold text-white uppercase tracking-wide">${r.fullText}</p>
+                </div>
+            `).join('');
+        }
+
+        // --- SALIDA ---
+        function requestExit() {
+            playSound('click');
+            document.getElementById('exit-modal').classList.remove('hidden');
+        }
+
+        function closeExitModal() {
+            playSound('click');
+            document.getElementById('exit-modal').classList.add('hidden');
+        }
+
+        function confirmExit() {
+            playSound('click');
+            document.getElementById('exit-modal').classList.add('hidden');
+            document.getElementById('game-screen').classList.add('hidden');
+            document.getElementById('setup-screen').classList.remove('hidden');
+            activeRules = [];
+        }
+
+        // Event Listeners iniciales
+        document.getElementById('player-input').addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') addPlayer();
+        });
+
+        window.onload = updateStartButtonText;
+
+    </script>
+</body>
+</html>
